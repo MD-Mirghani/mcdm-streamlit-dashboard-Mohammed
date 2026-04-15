@@ -9,33 +9,6 @@ from pymcdm.helpers import rrankdata
 from pymcdm import visuals
 
 st.set_page_config(page_title="MCDM Dashboard", layout="wide")
-
-# -----------------------------------------------------------------------------------------
-# NEW: CUSTOM CSS STYLING TO ENLARGE WIDGETS
-# -----------------------------------------------------------------------------------------
-st.markdown("""
-<style>
-/* 1. Make the Metric Widget (Top Alternative) Huge and Pronounced */
-[data-testid="stMetricValue"] {
-    font-size: 60px !important;
-    color: #FF4B4B !important; /* Makes the winning alternative stand out in red */
-    font-weight: 900 !important;
-}
-[data-testid="stMetricLabel"] {
-    font-size: 24px !important;
-    font-weight: bold !important;
-}
-
-/* 2. Make the Expander header text larger */
-.streamlit-expanderHeader {
-    font-size: 20px !important;
-    font-weight: bold !important;
-}
-</style>
-""", unsafe_allow_html=True)
-# -----------------------------------------------------------------------------------------
-
-
 st.title("Multi-Criteria Decision Making (MCDM) Dashboard")
 
 # --- 1. DATA INPUT ---
@@ -66,33 +39,29 @@ alts_names = edited_df.iloc[:, 0].tolist()
 criteria_names = edited_df.columns[1:]
 alts_data = edited_df.iloc[:, 1:].to_numpy()
 
-# -----------------------------------------------------------------------------------------
-# NEW WIDGET 3: Expander and Selectbox (Data Exploration)
-# -----------------------------------------------------------------------------------------
-with st.expander("📊 Explore Raw Data Distribution"):
-    st.markdown("Select a specific criterion to see how the alternatives compare before weighting.")
-    selected_criterion = st.selectbox("Select Criterion:", criteria_names)
-    st.bar_chart(data=edited_df, x='alternative', y=selected_criterion)
-# -----------------------------------------------------------------------------------------
-
 # --- 2. WEIGHTS & TYPES CONFIGURATION ---
 st.sidebar.header("2. Criteria Configuration")
-st.sidebar.markdown("Set weights and types for each criterion.")
 
-weights_list = []
-types_list = []
+# -----------------------------------------------------------------------------------------
+# NEW WIDGET 1: Popover (Clean, floating menu for advanced settings)
+# -----------------------------------------------------------------------------------------
+with st.sidebar.popover("⚙️ Advanced Weight Tuning"):
+    st.markdown("Adjust the fine-grained weights and types for your MCDM model here.")
+    weights_list = []
+    types_list = []
 
-for col in criteria_names:
-    st.sidebar.markdown(f"**{col}**")
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        # Slider for weights
-        weight = st.slider(f"Weight", min_value=0.0, max_value=1.0, value=1.0/len(criteria_names), key=f"w_{col}")
-        weights_list.append(weight)
-    with c2:
-        # Cost or Benefit option button
-        ctype = st.radio("Type", options=["Benefit", "Cost"], key=f"t_{col}")
-        types_list.append(1 if ctype == "Benefit" else -1)
+    for col in criteria_names:
+        st.markdown(f"**{col}**")
+        c1, c2 = st.columns(2) # Columns inside the popover to keep it tidy
+        with c1:
+            # Slider for weights
+            weight = st.slider(f"Weight", min_value=0.0, max_value=1.0, value=1.0/len(criteria_names), key=f"w_{col}")
+            weights_list.append(weight)
+        with c2:
+            # Cost or Benefit option button
+            ctype = st.radio("Type", options=["Benefit", "Cost"], key=f"t_{col}")
+            types_list.append(1 if ctype == "Benefit" else -1)
+# -----------------------------------------------------------------------------------------
 
 # Normalize weights so they sum to 1
 weights = np.array(weights_list)
@@ -118,6 +87,12 @@ selected_method_names = st.sidebar.multiselect(
 
 # --- 4. EXECUTE & DISPLAY RESULTS ---
 if st.button("Run MCDM Analysis"):
+    # -----------------------------------------------------------------------------------------
+    # NEW WIDGET 2: Toast Notification (Sleek, transient success message)
+    # -----------------------------------------------------------------------------------------
+    st.toast("✅ Analysis Complete! The dashboard has been updated.", icon="🚀")
+    # -----------------------------------------------------------------------------------------
+    
     if not selected_method_names:
         st.warning("Please select at least one method from the sidebar.")
     else:
@@ -133,39 +108,33 @@ if st.button("Run MCDM Analysis"):
             prefs.append(pref)
             ranks.append(rank)
             
-        pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
-        rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
-
-        # -----------------------------------------------------------------------------------------
-        # NEW WIDGET 1: Metric (Top Recommended Alternative)
-        # -----------------------------------------------------------------------------------------
-        first_method = selected_method_names[0]
-        top_alt = rank_df[rank_df[first_method] == 1].index[0]
-        st.metric(label=f"🏆 Top Recommended Alternative (via {first_method})", value=top_alt)
-        # -----------------------------------------------------------------------------------------
-
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("Preference Table")
-            st.dataframe(pref_df, use_container_width=True)
+            pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
+            
+            # -----------------------------------------------------------------------------------------
+            # NEW WIDGET 3: Column Configuration (Visual progress bars inside the dataframe)
+            # -----------------------------------------------------------------------------------------
+            # Dynamically create visual progress bars for the calculated scores
+            score_col_config = {}
+            for col_name in selected_method_names:
+                score_col_config[col_name] = st.column_config.ProgressColumn(
+                    f"{col_name} Score",
+                    help="Higher preference score is better",
+                    min_value=float(pref_df[col_name].min()), # dynamically scale bar minimum
+                    max_value=float(pref_df[col_name].max()), # dynamically scale bar maximum
+                )
+            
+            # Apply the configuration to the dataframe
+            st.dataframe(pref_df, column_config=score_col_config, use_container_width=True)
+            # -----------------------------------------------------------------------------------------
             
         with col2:
             st.subheader("Ranking Table")
+            rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
             st.dataframe(rank_df, use_container_width=True)
-            
-            # -----------------------------------------------------------------------------------------
-            # NEW WIDGET 2: Download Button (Export Rankings)
-            # -----------------------------------------------------------------------------------------
-            csv_data = rank_df.to_csv().encode('utf-8')
-            st.download_button(
-                label="⬇️ Download Rankings as CSV",
-                data=csv_data,
-                file_name='mcdm_final_rankings.csv',
-                mime='text/csv',
-                type="primary"
-            )
-            # -----------------------------------------------------------------------------------------
 
         # Plotting the polar chart
         st.subheader("Polar Ranking Plot")

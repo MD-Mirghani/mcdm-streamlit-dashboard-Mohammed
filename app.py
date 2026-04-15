@@ -9,6 +9,39 @@ from pymcdm.helpers import rrankdata
 from pymcdm import visuals
 
 st.set_page_config(page_title="MCDM Dashboard", layout="wide")
+
+# -----------------------------------------------------------------------------------------
+# NEW: CUSTOM CSS STYLING TO CHANGE BACKGROUND AND ENLARGE WIDGETS
+# -----------------------------------------------------------------------------------------
+st.markdown("""
+<style>
+/* 1. Force a Light Blue Background */
+.stApp {
+    background-color: #F0F8FF; 
+}
+
+/* 2. Make the Metric Widget (Top Alternative) Huge and Pronounced */
+[data-testid="stMetricValue"] {
+    font-size: 60px !important;
+    color: #FF4B4B !important; /* Makes the winning alternative stand out in red */
+    font-weight: 900 !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 24px !important;
+    font-weight: bold !important;
+    color: #333333 !important;
+}
+
+/* 3. Make the Expander header text larger */
+.streamlit-expanderHeader {
+    font-size: 20px !important;
+    font-weight: bold !important;
+}
+</style>
+""", unsafe_allow_html=True)
+# -----------------------------------------------------------------------------------------
+
+
 st.title("Multi-Criteria Decision Making (MCDM) Dashboard")
 
 # --- 1. DATA INPUT ---
@@ -26,7 +59,7 @@ else:
         'wetlands': [0.9, 0.6, 0.1],
         'forest': [0.1, 0.6, 0.3],
         'social acceptance': [0.17, 0.83, 0.50]
-    }
+    }   
     df = pd.DataFrame(data)
 
 st.subheader("Decision Matrix")
@@ -38,6 +71,15 @@ edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
 alts_names = edited_df.iloc[:, 0].tolist()
 criteria_names = edited_df.columns[1:]
 alts_data = edited_df.iloc[:, 1:].to_numpy()
+
+# -----------------------------------------------------------------------------------------
+# NEW WIDGET 3: Expander and Selectbox (Data Exploration)
+# -----------------------------------------------------------------------------------------
+with st.expander("📊 Explore Raw Data Distribution"):
+    st.markdown("Select a specific criterion to see how the alternatives compare before weighting.")
+    selected_criterion = st.selectbox("Select Criterion:", criteria_names)
+    st.bar_chart(data=edited_df, x='alternative', y=selected_criterion)
+# -----------------------------------------------------------------------------------------
 
 # --- 2. WEIGHTS & TYPES CONFIGURATION ---
 st.sidebar.header("2. Criteria Configuration")
@@ -97,17 +139,39 @@ if st.button("Run MCDM Analysis"):
             prefs.append(pref)
             ranks.append(rank)
             
+        pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
+        rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
+
+        # -----------------------------------------------------------------------------------------
+        # NEW WIDGET 1: Metric (Top Recommended Alternative)
+        # -----------------------------------------------------------------------------------------
+        first_method = selected_method_names[0]
+        top_alt = rank_df[rank_df[first_method] == 1].index[0]
+        st.metric(label=f"🏆 Top Recommended Alternative (via {first_method})", value=top_alt)
+        # -----------------------------------------------------------------------------------------
+
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("Preference Table")
-            pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
             st.dataframe(pref_df, use_container_width=True)
             
         with col2:
             st.subheader("Ranking Table")
-            rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
             st.dataframe(rank_df, use_container_width=True)
+            
+            # -----------------------------------------------------------------------------------------
+            # NEW WIDGET 2: Download Button (Export Rankings)
+            # -----------------------------------------------------------------------------------------
+            csv_data = rank_df.to_csv().encode('utf-8')
+            st.download_button(
+                label="⬇️ Download Rankings as CSV",
+                data=csv_data,
+                file_name='mcdm_final_rankings.csv',
+                mime='text/csv',
+                type="primary" # This makes the button red/solid instead of an outline
+            )
+            # -----------------------------------------------------------------------------------------
 
         # Plotting the polar chart
         st.subheader("Polar Ranking Plot")

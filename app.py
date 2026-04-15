@@ -11,7 +11,7 @@ from pymcdm import visuals
 st.set_page_config(page_title="MCDM Dashboard", layout="wide")
 
 # -----------------------------------------------------------------------------------------
-# NEW: CUSTOM CSS STYLING TO CHANGE BACKGROUND AND ENLARGE WIDGETS
+# NEW: CUSTOM CSS STYLING TO CHANGE BACKGROUND, TEXT COLOR, AND ENLARGE WIDGETS
 # -----------------------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -20,7 +20,12 @@ st.markdown("""
     background-color: #F0F8FF; 
 }
 
-/* 2. Make the Metric Widget (Top Alternative) Huge and Pronounced */
+/* 2. Force text to be dark so it is readable on the light background */
+h1, h2, h3, h4, p, label, .stMarkdown, .streamlit-expanderContent {
+    color: #111111 !important;
+}
+
+/* 3. Make the Metric Widget (Top Alternative) Huge and Pronounced */
 [data-testid="stMetricValue"] {
     font-size: 60px !important;
     color: #FF4B4B !important; /* Makes the winning alternative stand out in red */
@@ -29,13 +34,14 @@ st.markdown("""
 [data-testid="stMetricLabel"] {
     font-size: 24px !important;
     font-weight: bold !important;
-    color: #333333 !important;
+    color: #111111 !important;
 }
 
-/* 3. Make the Expander header text larger */
+/* 4. Make the Expander header text larger and visible */
 .streamlit-expanderHeader {
     font-size: 20px !important;
     font-weight: bold !important;
+    color: #111111 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -169,7 +175,7 @@ if st.button("Run MCDM Analysis"):
                 data=csv_data,
                 file_name='mcdm_final_rankings.csv',
                 mime='text/csv',
-                type="primary" # This makes the button red/solid instead of an outline
+                type="primary"
             )
             # -----------------------------------------------------------------------------------------
 

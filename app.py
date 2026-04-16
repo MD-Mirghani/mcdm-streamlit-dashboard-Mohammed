@@ -67,12 +67,32 @@ criteria_names = edited_df.columns[1:]
 alts_data = edited_df.iloc[:, 1:].to_numpy()
 
 # -----------------------------------------------------------------------------------------
-# NEW WIDGET 3: Expander and Selectbox (Data Exploration)
+# NEW WIDGET 3: Expander and Selectbox (Data Exploration) - IMPROVED UI
 # -----------------------------------------------------------------------------------------
-with st.expander("📊 Explore Raw Data Distribution"):
-    st.markdown("Select a specific criterion to see how the alternatives compare before weighting.")
-    selected_criterion = st.selectbox("Select Criterion:", criteria_names)
-    st.bar_chart(data=edited_df, x='alternative', y=selected_criterion)
+with st.expander("📊 Explore Raw Data Distribution", expanded=True):
+    st.markdown("Analyze how the alternatives compare across specific criteria before weighting.")
+    
+    # 1. Use columns to create a sleek, side-by-side layout
+    col_controls, col_chart = st.columns([1, 2]) 
+    
+    with col_controls:
+        selected_criterion = st.selectbox("Select Criterion:", criteria_names)
+        
+        # 2. Add an info box with quick stats to make it look analytical
+        max_val = edited_df[selected_criterion].max()
+        min_val = edited_df[selected_criterion].min()
+        st.info(f"**Highest Value:** {max_val}\n\n**Lowest Value:** {min_val}")
+
+    with col_chart:
+        # 3. Add the 'color' parameter to make the bars visually distinct
+        st.bar_chart(
+            data=edited_df, 
+            x='alternative', 
+            y=selected_criterion, 
+            color='alternative', 
+            use_container_width=True
+        )
+# -----------------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------------
 
 # --- 2. WEIGHTS & TYPES CONFIGURATION ---

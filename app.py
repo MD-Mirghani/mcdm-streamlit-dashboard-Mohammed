@@ -11,22 +11,11 @@ from pymcdm import visuals
 st.set_page_config(page_title="MCDM Dashboard", layout="wide")
 
 # -----------------------------------------------------------------------------------------
-# NEW: CUSTOM CSS STYLING TO ENLARGE WIDGETS
+# NEW: CUSTOM CSS STYLING
 # -----------------------------------------------------------------------------------------
 st.markdown("""
 <style>
-/* 1. Make the Metric Widget (Top Alternative) Huge and Pronounced */
-[data-testid="stMetricValue"] {
-    font-size: 60px !important;
-    color: #FF4B4B !important; /* Makes the winning alternative stand out in red */
-    font-weight: 900 !important;
-}
-[data-testid="stMetricLabel"] {
-    font-size: 24px !important;
-    font-weight: bold !important;
-}
-
-/* 2. Make the Expander header text larger */
+/* Make the Expander header text larger */
 .streamlit-expanderHeader {
     font-size: 20px !important;
     font-weight: bold !important;
@@ -67,24 +56,20 @@ criteria_names = edited_df.columns[1:]
 alts_data = edited_df.iloc[:, 1:].to_numpy()
 
 # -----------------------------------------------------------------------------------------
-# NEW WIDGET 3: Expander and Selectbox (Data Exploration) - IMPROVED UI
+# NEW WIDGET 3: Expander with Side-by-Side Layout (Data Exploration)
 # -----------------------------------------------------------------------------------------
 with st.expander("📊 Explore Raw Data Distribution", expanded=True):
     st.markdown("Analyze how the alternatives compare across specific criteria before weighting.")
     
-    # 1. Use columns to create a sleek, side-by-side layout
     col_controls, col_chart = st.columns([1, 2]) 
     
     with col_controls:
         selected_criterion = st.selectbox("Select Criterion:", criteria_names)
-        
-        # 2. Add an info box with quick stats to make it look analytical
         max_val = edited_df[selected_criterion].max()
         min_val = edited_df[selected_criterion].min()
         st.info(f"**Highest Value:** {max_val}\n\n**Lowest Value:** {min_val}")
 
     with col_chart:
-        # 3. Add the 'color' parameter to make the bars visually distinct
         st.bar_chart(
             data=edited_df, 
             x='alternative', 
@@ -92,7 +77,6 @@ with st.expander("📊 Explore Raw Data Distribution", expanded=True):
             color='alternative', 
             use_container_width=True
         )
-# -----------------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------------
 
 # --- 2. WEIGHTS & TYPES CONFIGURATION ---
@@ -157,33 +141,46 @@ if st.button("Run MCDM Analysis"):
         rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
 
         # -----------------------------------------------------------------------------------------
-        # NEW WIDGET 1: Metric (Top Recommended Alternative)
+        # NEW WIDGET 1: Toggle Switch (Strict Interactive Input Widget)
         # -----------------------------------------------------------------------------------------
         first_method = selected_method_names[0]
         top_alt = rank_df[rank_df[first_method] == 1].index[0]
-        st.metric(label=f"🏆 Top Recommended Alternative (via {first_method})", value=top_alt)
+        
+        st.markdown("### 🏆 Winner Spotlight")
+        # This is a true input widget that changes the state of the app
+        highlight_winner = st.toggle(f"✨ Highlight the #1 Alternative ({top_alt}) in the tables below", value=True)
+        
+        # Function to apply Pandas styling to the dataframe rows based on the toggle
+        def highlight_top_row(row):
+            if highlight_winner and row.name == top_alt:
+                return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
+            return [''] * len(row)
         # -----------------------------------------------------------------------------------------
 
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("Preference Table")
-            st.dataframe(pref_df, use_container_width=True)
+            # We apply the highlight function to the dataframe before rendering
+            st.dataframe(pref_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
             
         with col2:
             st.subheader("Ranking Table")
-            st.dataframe(rank_df, use_container_width=True)
+            # We apply the highlight function to the dataframe before rendering
+            st.dataframe(rank_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
             
             # -----------------------------------------------------------------------------------------
-            # NEW WIDGET 2: Download Button (Export Rankings)
+            # NEW WIDGET 2: Download Button (Full-width styled block)
             # -----------------------------------------------------------------------------------------
             csv_data = rank_df.to_csv().encode('utf-8')
             st.download_button(
-                label="⬇️ Download Rankings as CSV",
+                label="⬇️ Download Final Rankings as CSV",
                 data=csv_data,
                 file_name='mcdm_final_rankings.csv',
                 mime='text/csv',
-                type="primary"
+                type="primary",
+                use_container_width=True,
+                help="Export this table to Excel or CSV for reporting."
             )
             # -----------------------------------------------------------------------------------------
 

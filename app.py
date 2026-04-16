@@ -120,72 +120,85 @@ selected_method_names = st.sidebar.multiselect(
     default=['TOPSIS', 'SAW']
 )
 
-# --- 4. EXECUTE & DISPLAY RESULTS ---
+
+# -----------------------------------------------------------------------------------------
+# THE FIX: Initialize session state to remember if the analysis has been run
+# -----------------------------------------------------------------------------------------
+if 'analysis_run' not in st.session_state:
+    st.session_state.analysis_run = False
+
+# Clicking the button changes the memory state to True
 if st.button("Run MCDM Analysis"):
     if not selected_method_names:
         st.warning("Please select at least one method from the sidebar.")
     else:
-        methods = [available_methods[name] for name in selected_method_names]
-        prefs = []
-        ranks = []
-        
-        # Determine preferences and ranking for alternatives
-        for method in methods:
-            pref = method(alts_data, weights, types)
-            rank = rrankdata(pref)
-            
-            prefs.append(pref)
-            ranks.append(rank)
-            
-        pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
-        rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
+        st.session_state.analysis_run = True
 
-        # -----------------------------------------------------------------------------------------
-        # NEW WIDGET 1: Toggle Switch (Strict Interactive Input Widget)
-        # -----------------------------------------------------------------------------------------
-        first_method = selected_method_names[0]
-        top_alt = rank_df[rank_df[first_method] == 1].index[0]
+# Now, we use the memory state to display the results, so they survive reruns!
+if st.session_state.analysis_run and selected_method_names:
+# -----------------------------------------------------------------------------------------
+
+    methods = [available_methods[name] for name in selected_method_names]
+    prefs = []
+    ranks = []
+    
+    # Determine preferences and ranking for alternatives
+    for method in methods:
+        pref = method(alts_data, weights, types)
+        rank = rrankdata(pref)
         
-        st.markdown("### 🏆 Winner Spotlight")
-        # This is a true input widget that changes the state of the app
-        highlight_winner = st.toggle(f"✨ Highlight the #1 Alternative ({top_alt}) in the tables below", value=True)
+        prefs.append(pref)
+        ranks.append(rank)
         
-        # Function to apply Pandas styling to the dataframe rows based on the toggle
-        def highlight_top_row(row):
-            if highlight_winner and row.name == top_alt:
-                return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
-            return [''] * len(row)
+    pref_df = pd.DataFrame(zip(*prefs), columns=selected_method_names, index=alts_names).round(3)
+    rank_df = pd.DataFrame(zip(*ranks), columns=selected_method_names, index=alts_names).astype(int)
+
+    # -----------------------------------------------------------------------------------------
+    # NEW WIDGET 1: Toggle Switch (Strict Interactive Input Widget)
+    # -----------------------------------------------------------------------------------------
+    first_method = selected_method_names[0]
+    top_alt = rank_df[rank_df[first_method] == 1].index[0]
+    
+    st.markdown("### 🏆 Winner Spotlight")
+    # This is a true input widget that changes the state of the app
+    highlight_winner = st.toggle(f"✨ Highlight the #1 Alternative ({top_alt}) in the tables below", value=True)
+    
+    # Function to apply Pandas styling to the dataframe rows based on the toggle
+    def highlight_top_row(row):
+        if highlight_winner and row.name == top_alt:
+            return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
+        return [''] * len(row)
+    # -----------------------------------------------------------------------------------------
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Preference Table")
+        # We apply the highlight function to the dataframe before rendering
+        st.dataframe(pref_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
+        
+    with col2:
+        st.subheader("Ranking Table")
+        # We apply the highlight function to the dataframe before rendering
+        st.dataframe(rank_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
+        
+        # -----------------------------------------------------------------------------------------
+        # NEW WIDGET 2: Download Button (Full-width styled block)
+        # -----------------------------------------------------------------------------------------
+        csv_data = rank_df.to_csv().encode('utf-8')
+        st.download_button(
+            label="⬇️ Download Final Rankings as CSV",
+            data=csv_data,
+            file_name='mcdm_final_rankings.csv',
+            mime='text/csv',
+            type="primary",
+            use_container_width=True,
+            help="Export this table to Excel or CSV for reporting."
+        )
         # -----------------------------------------------------------------------------------------
 
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Preference Table")
-            # We apply the highlight function to the dataframe before rendering
-            st.dataframe(pref_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
-            
-        with col2:
-            st.subheader("Ranking Table")
-            # We apply the highlight function to the dataframe before rendering
-            st.dataframe(rank_df.style.apply(highlight_top_row, axis=1), use_container_width=True)
-            
-            # -----------------------------------------------------------------------------------------
-            # NEW WIDGET 2: Download Button (Full-width styled block)
-            # -----------------------------------------------------------------------------------------
-            csv_data = rank_df.to_csv().encode('utf-8')
-            st.download_button(
-                label="⬇️ Download Final Rankings as CSV",
-                data=csv_data,
-                file_name='mcdm_final_rankings.csv',
-                mime='text/csv',
-                type="primary",
-                use_container_width=True,
-                help="Export this table to Excel or CSV for reporting."
-            )
-            # -----------------------------------------------------------------------------------------
-
-        # Plotting the polar chart
-        st.subheader("Polar Ranking Plot")
-        fig, ax = plt.subplots(figsize=(7, 7), dpi=150, tight_layout=True, subplot_kw=dict(projection='polar'))
-        visuals.polar_plot(ranks, labels=selected_method_names, legend_ncol=2, ax=ax)
-        st.pyplot(fig)
+    # Plotting the polar chart
+    st.subheader("Polar Ranking Plot")
+    fig, ax = plt.subplots(figsize=(7, 7), dpi=150, tight_layout=True, subplot_kw=dict(projection='polar'))
+    visuals.polar_plot(ranks, labels=selected_method_names, legend_ncol=2, ax=ax)
+    st.pyplot(fig)

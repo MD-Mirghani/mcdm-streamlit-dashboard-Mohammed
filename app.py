@@ -159,9 +159,9 @@ if st.session_state.analysis_run and selected_method_names:
     first_method = selected_method_names[0]
     top_alt = rank_df[rank_df[first_method] == 1].index[0]
     
-    st.markdown("### 🏆 Winner Spotlight")
+    st.markdown("🏆 Winner Spotlight")
     # This is a true input widget that changes the state of the app
-    highlight_winner = st.toggle(f"✨ Highlight the #1 Alternative ({top_alt}) in the tables below", value=True)
+    highlight_winner = st.toggle(f" Highlight the #1 Alternative ({top_alt}) in the tables below", value=True)
     
     # Function to apply Pandas styling to the dataframe rows based on the toggle
     def highlight_top_row(row):
